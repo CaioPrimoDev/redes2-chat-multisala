@@ -1,4 +1,7 @@
 @echo off
+echo Iniciando o EPMD (Guarda de Transito do Erlang)...
+epmd -daemon
+
 echo Limpando arquivos antigos...
 del *.beam 2>nul
 
@@ -10,4 +13,5 @@ if %errorlevel% equ 0 (
     iex -e "Chat.CLI.iniciar()"
 ) else (
     echo Erro na compilacao. Verifique o codigo.
+    pause
 )
