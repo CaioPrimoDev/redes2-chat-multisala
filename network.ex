@@ -30,12 +30,22 @@ defmodule Chat.Network do
   def buscar_ip_local() do
     {:ok, interfaces} = :inet.getifaddrs()
     
-    ips = for {iface, opts} <- interfaces, 
-              iface == ~c"eth0" or iface == ~c"enp0s3",
-              addr = List.keyfind(opts, :addr, 0),
-              {_, {a, b, c, d}} = addr,
-              a != 127, do: "#{a}.#{b}.#{c}.#{d}"
+    # Procura em todas as placas de rede
+    ip_tupla = Enum.find_value(interfaces, fn {_nome_da_placa, dados} ->
+      Enum.find_value(dados, fn
+        # Se for um IP do tipo {127, X, X, X}, nós IGNORAMOS (retorna false)
+        {:addr, {127, _, _, _}} -> false
+        
+        # Se for um IPv4 válido de rede local, nós GUARDAMOS
+        {:addr, {a, b, c, d} = ip} -> ip
+        
+        # Ignora IPv6 e outras configurações irrelevantes
+        _ -> false
+      end)
+    end)
 
-    List.first(ips) || "127.0.0.1"
+    # Converte a tupla {192, 168, 1, X} em texto "192.168.1.X"
+    {a, b, c, d} = ip_tupla
+    "#{a}.#{b}.#{c}.#{d}"
   end
 end
