@@ -1,25 +1,37 @@
 defmodule Chat.CLI do
-  
+
   def iniciar() do
-    # Limpa a tela do terminal
     IO.write("\e[H\e[2J")
     IO.puts("=============================================")
     IO.puts("        BEM-VINDO AO ELIXIR CHAT P2P         ")
     IO.puts("=============================================")
 
-    nome = IO.gets("Digite seu nome de usuário: ") |> String.trim()
-
-    IO.puts("\nConfigurando rede, aguarde...")
+    # Iniciamos a rede ANTES para podermos validar o nome com os vizinhos
+    IO.puts("Configurando rede...")
     Chat.Network.configurar_no()
     Chat.Server.iniciar()
 
+    nome = escolher_nome()
+
     IO.puts("=============================================")
     IO.puts("Olá, #{nome}! Digite sua mensagem e aperte Enter.")
-    IO.puts("DICA 1: Para conectar manualmente, digite: /conectar IP")
-    IO.puts("DICA 2: Para buscar colegas na rede, digite: /procurar")
+    IO.puts("Comandos: Para conectar manualmente, digite: /conectar IP")
+    IO.puts("          Para buscar colegas na rede, digite: /procurar")
     IO.puts("=============================================\n")
 
     loop_chat(nome)
+  end
+
+  defp escolher_nome() do
+    nome = IO.gets("Escolha seu nome de usuário: ") |> String.trim()
+    
+    # Validação: Se houver colegas, pergunta se o nome existe
+    if Chat.Server.nome_disponivel?(nome) do
+      nome
+    else
+      IO.puts(IO.ANSI.yellow() <> "⚠️ Nome '#{nome}' já está em uso! Tente outro." <> IO.ANSI.reset())
+      escolher_nome()
+    end
   end
 
   defp loop_chat(nome) do
@@ -34,7 +46,6 @@ defmodule Chat.CLI do
       String.starts_with?(texto, "/conectar ") ->
         ip_destino = String.replace(texto, "/conectar ", "")
         
-        # Como tiramos o IO.puts do network.ex, podemos avisar o usuário aqui
         if Chat.Network.conectar_com(ip_destino) do
           IO.puts("🤝 Conectado com sucesso a #{ip_destino}!")
         else

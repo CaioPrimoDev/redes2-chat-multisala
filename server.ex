@@ -15,6 +15,17 @@ defmodule Chat.Server do
     GenServer.cast(:chat_servidor, {:espalhar_mensagem, nome, texto})
   end
 
+  # Função para o CLI perguntar se o nome já existe na rede
+  def nome_disponivel?(nome_pretendido) do
+    # Pergunta a todos os nós ligados. Se algum retornar 'false', o nome está ocupado.
+    respostas = GenServer.multi_call(Node.list(), :chat_servidor, {:verificar_nome, nome_pretendido})
+    
+    # Verifica se houve alguma resposta negativa (nome ocupado)
+    case respostas do
+      {replies, _bad_nodes} -> 
+        not Enum.any?(replies, fn {_no, resp} -> resp == :ocupado end)
+    end
+  end
 
   # ==========================================
   # 2. CALLBACKS (O que roda na salinha fechada)
@@ -22,35 +33,58 @@ defmodule Chat.Server do
 
   @impl true
   def init(estado_inicial) do
-    # O servidor liga e guarda um caderno em branco (estado)
+    # ATENÇÃO: Esta linha ativa o radar de monitorização de quedas!
+    :net_kernel.monitor_nodes(true)
     {:ok, estado_inicial}
+  end
+
+  # Responder se o nome está ocupado
+  @impl true
+  def handle_call({:verificar_nome, nome_pretendido}, _from, estado) do
+    # Verifica se o meu próprio nome (no CLI) ou de alguém que conheço é igual
+    nomes_conhecidos = Map.values(estado)
+    if nome_pretendido in nomes_conhecidos do
+      {:reply, :ocupado, estado}
+    else
+      {:reply, :livre, estado}
+    end
   end
 
   @impl true
   def handle_cast({:espalhar_mensagem, nome, texto}, estado) do
-    # Passo 1: Imprime a mensagem na NOSSA tela
-    # Imprime a NOSSA mensagem em Verde
-    IO.puts(IO.ANSI.green() <> "\n[#{nome}]: " <> IO.ANSI.reset() <> texto)
+    IO.puts(IO.ANSI.green() <> "[Você]: " <> IO.ANSI.reset() <> texto)
+    
+    # Ao enviar, aproveitamos para atualizar o nosso mapa local de nomes
+    novo_estado = Map.put(estado, Node.self(), nome)
 
-    # Passo 2: Pega a lista de IPs das outras máquinas conectadas
-    outras_maquinas = Node.list()
-
-    # Passo 3: Envia a mensagem pela rede para os servidores das outras VMs
-    for maquina <- outras_maquinas do
+    for maquina <- Node.list() do
       GenServer.cast({:chat_servidor, maquina}, {:receber_de_fora, nome, texto})
     end
 
-    # Volta a dormir esperando a próxima mensagem
-    {:noreply, estado}
+    {:noreply, novo_estado}
   end
 
   @impl true
   def handle_cast({:receber_de_fora, nome, texto}, estado) do
-    # Quando uma mensagem chega pela rede, a gente apenas imprime
-    # Imprime a mensagem DE FORA em Ciano (Azul claro) e pula uma linha antes
     IO.puts("\n" <> IO.ANSI.cyan() <> "[#{nome}]: " <> IO.ANSI.reset() <> texto)
-
-    {:noreply, estado}
+    
+    # Guarda o nome deste colega no nosso estado para sabermos quem ele é se ele cair
+    {:noreply, Map.put(estado, node(), nome)}
   end
+
+  # --- O TRATAMENTO DE SAÍDA ---
+  @impl true
+  def handle_info({:nodedown, no}, estado) do
+    nome_que_saiu = Map.get(estado, no, "Alguém (IP: #{no})")
+    
+    IO.puts("\n" <> IO.ANSI.red() <> "❌ #{nome_que_saiu} saiu do chat." <> IO.ANSI.reset())
+    
+    # Remove a pessoa do nosso registo
+    {:noreply, Map.delete(estado, no)}
+  end
+
+  # Ignora outras mensagens de sistema
+  @impl true
+  def handle_info(_, estado), do: {:noreply, estado}
 
 end
