@@ -8,6 +8,10 @@ defmodule Chat.Network do
     # 2. O prefixo DEVE ser "chat" em vez de "usuario" para o radar adivinhar
     nome_no = String.to_atom("chat@#{ip_string}")
 
+    # Força o EPMD a ligar de forma nativa e aguarda meio segundo
+    System.cmd("epmd", ["-daemon"])
+    :timer.sleep(500)
+
     # 3. Inicia a rede com tratamento de erros (muito mais seguro)
     case Node.start(nome_no) do
       {:ok, _pid} ->

@@ -7,7 +7,7 @@ defmodule Chat.Server do
 
   @doc "Contrata o funcionário e dá um nome fixo para ele"
   def iniciar() do
-    GenServer.start_link(__MODULE__, [], name: :chat_servidor)
+    GenServer.start_link(__MODULE__, %{}, name: :chat_servidor)
   end
 
   @doc "Pega a nossa mensagem e entrega para o servidor espalhar"
