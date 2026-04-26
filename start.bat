@@ -34,9 +34,17 @@ REM ==========================================
 REM SESSAO NORMAL DE INICIALIZACAO DO CHAT
 REM ==========================================
 :IniciarChat
-echo Limpando processos antigos do Elixir...
+echo Limpando processos antigos...
 taskkill /f /im epmd.exe >nul 2>&1
 del *.beam >nul 2>&1
+
+echo Iniciando o servico de rede nativo...
+REM O Truque de Mestre: Pedimos para o Elixir criar um nó descartável.
+REM Para fazer isso, ele é obrigado a achar e ligar o EPMD sozinho!
+call elixir --sname despertar_epmd -e "System.halt(0)" >nul 2>&1
+
+REM Aguarda 2 segundos para o porteiro (EPMD) terminar de sentar na cadeira
+timeout /t 2 /nobreak >nul
 
 echo Compilando o codigo fonte...
 call elixirc network.ex server.ex cli.ex

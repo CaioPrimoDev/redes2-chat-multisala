@@ -2,17 +2,13 @@ defmodule Chat.Network do
   @cookie :chat_secreto_das_redes # A senha do cluster
 
   def configurar_no() do
-    # 1. Pega o IP usando a sua função nativa brilhante
+    # 1. Pega o IP real da maquina
     ip_string = buscar_ip_local()
     
-    # 2. O prefixo DEVE ser "chat" em vez de "usuario" para o radar adivinhar
+    # 2. O prefixo DEVE ser "chat" 
     nome_no = String.to_atom("chat@#{ip_string}")
 
-    # Força o EPMD a ligar de forma nativa e aguarda meio segundo
-    System.cmd("epmd", ["-daemon"])
-    :timer.sleep(500)
-
-    # 3. Inicia a rede com tratamento de erros (muito mais seguro)
+    # 3. Inicia a rede (O EPMD ja foi ligado pelo start.bat!)
     case Node.start(nome_no) do
       {:ok, _pid} ->
         Node.set_cookie(@cookie)
