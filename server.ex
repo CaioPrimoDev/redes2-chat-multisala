@@ -54,22 +54,24 @@ defmodule Chat.Server do
   def handle_cast({:espalhar_mensagem, nome, texto}, estado) do
     IO.puts(IO.ANSI.green() <> "[Você]: " <> IO.ANSI.reset() <> texto)
     
-    # Ao enviar, aproveitamos para atualizar o nosso mapa local de nomes
+    # Atualizamos o nosso mapa local de nomes
     novo_estado = Map.put(estado, Node.self(), nome)
 
     for maquina <- Node.list() do
-      GenServer.cast({:chat_servidor, maquina}, {:receber_de_fora, nome, texto})
+      # MUDANÇA AQUI: Injetamos o `Node.self()` no "envelope" para o colega saber quem enviou!
+      GenServer.cast({:chat_servidor, maquina}, {:receber_de_fora, Node.self(), nome, texto})
     end
 
     {:noreply, novo_estado}
   end
 
   @impl true
-  def handle_cast({:receber_de_fora, nome, texto}, estado) do
+  # MUDANÇA AQUI: Agora a função está preparada para receber a variável `remetente`
+  def handle_cast({:receber_de_fora, remetente, nome, texto}, estado) do
     IO.puts("\n" <> IO.ANSI.cyan() <> "[#{nome}]: " <> IO.ANSI.reset() <> texto)
     
-    # Guarda o nome deste colega no nosso estado para sabermos quem ele é se ele cair
-    {:noreply, Map.put(estado, node(), nome)}
+    # MUDANÇA AQUI: Salva o nome associado ao `remetente` verdadeiro, e não a nós mesmos.
+    {:noreply, Map.put(estado, remetente, nome)}
   end
 
   # --- O TRATAMENTO DE SAÍDA ---
