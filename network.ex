@@ -30,15 +30,20 @@ defmodule Chat.Network do
     Node.connect(alvo)
   end
 
-  # Mudamos de defp (privada) para def (pública) para o cli.ex conseguir usar no radar
   def buscar_ip_local() do
     {:ok, interfaces} = :inet.getifaddrs()
     
     # Procura em todas as placas de rede
     ip_tupla = Enum.find_value(interfaces, fn {_nome_da_placa, dados} ->
       Enum.find_value(dados, fn
-        # Se for um IP do tipo {127, X, X, X}, nós IGNORAMOS (retorna false)
+        # Ignora localhost (127.0.0.1)
         {:addr, {127, _, _, _}} -> false
+        
+        # MUDANÇA: Ignora o IP Fantasma do Windows (APIPA 169.254.x.x)
+        {:addr, {169, 254, _, _}} -> false
+        
+        # Opcional (se tiver VirtualBox instalado, ele ignora a placa virtual)
+        {:addr, {192, 168, 56, _}} -> false
         
         # Se for um IPv4 válido de rede local, nós GUARDAMOS
         {:addr, {a, b, c, d} = ip} -> ip
