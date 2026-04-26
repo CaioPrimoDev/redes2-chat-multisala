@@ -33,10 +33,20 @@ defmodule Chat.CLI do
     # Fica com o cursor piscando, esperando o usuário digitar algo
     texto = IO.gets("") |> String.trim()
 
-    # Se o texto não for vazio, envia para o servidor espalhar
-    if texto != "" do
-      # Aqui está a mágica! O usuário digita texto, o código manda pro GenServer.
-      Chat.Server.enviar(nome, texto)
+    # O "cond" é o super-if do Elixir. Ele testa várias situações.
+    cond do
+      texto == "" ->
+        # Se apertar Enter sem digitar nada, não faz nada
+        :ok
+
+      String.starts_with?(texto, "/conectar ") ->
+        # Se o texto começar com "/conectar ", ele recorta o IP e conecta!
+        ip_destino = String.replace(texto, "/conectar ", "")
+        Chat.Network.conectar_com(ip_destino)
+
+      true ->
+        # Se não for vazio nem for comando, espalha a mensagem!
+        Chat.Server.enviar(nome, texto)
     end
 
     # A recursão infinita: chama a si mesma para continuar escutando o teclado
