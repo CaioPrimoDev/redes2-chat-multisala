@@ -1,55 +1,76 @@
 defmodule Chat.CLI do
-
-  # MODULO DA INTERFACE
   
-  @doc "O ponto de partida do nosso aplicativo"
   def iniciar() do
-    # Limpa a tela do terminal para ficar bonito (funciona no Linux/Mac)
+    # Limpa a tela do terminal
     IO.write("\e[H\e[2J")
-    
     IO.puts("=============================================")
     IO.puts("        BEM-VINDO AO ELIXIR CHAT P2P         ")
     IO.puts("=============================================")
 
-    # 1. Pede o nome do usuário e remove os espaços extras/quebra de linha com String.trim()
     nome = IO.gets("Digite seu nome de usuário: ") |> String.trim()
 
     IO.puts("\nConfigurando rede, aguarde...")
-
-    # 2. O CLI liga os motores por nós!
     Chat.Network.configurar_no()
     Chat.Server.iniciar()
 
     IO.puts("=============================================")
     IO.puts("Olá, #{nome}! Digite sua mensagem e aperte Enter.")
+    IO.puts("DICA 1: Para conectar manualmente, digite: /conectar IP")
+    IO.puts("DICA 2: Para buscar colegas na rede, digite: /procurar")
     IO.puts("=============================================\n")
 
-    # 3. Manda o usuário para a sala de bate-papo (Loop infinito)
     loop_chat(nome)
   end
 
-  # Função privada (só o CLI usa) que mantém o prompt aberto
   defp loop_chat(nome) do
-    # Fica com o cursor piscando, esperando o usuário digitar algo
     texto = IO.gets("") |> String.trim()
 
-    # O "cond" é o super-if do Elixir. Ele testa várias situações.
     cond do
+      # Se o usuário apenas apertar Enter, não faz nada
       texto == "" ->
-        # Se apertar Enter sem digitar nada, não faz nada
         :ok
 
+      # Comando manual de conexão
       String.starts_with?(texto, "/conectar ") ->
-        # Se o texto começar com "/conectar ", ele recorta o IP e conecta!
         ip_destino = String.replace(texto, "/conectar ", "")
-        Chat.Network.conectar_com(ip_destino)
+        
+        # Como tiramos o IO.puts do network.ex, podemos avisar o usuário aqui
+        if Chat.Network.conectar_com(ip_destino) do
+          IO.puts("🤝 Conectado com sucesso a #{ip_destino}!")
+        else
+          IO.puts("⚠️ Não foi possível encontrar a máquina em #{ip_destino}.")
+        end
 
+      # Comando do radar universal
+      texto == "/procurar" ->
+        meu_ip = Chat.Network.buscar_ip_local()
+        
+        # Pega o IP (ex: 192.168.1.10) e divide nos pontos para pegar o prefixo
+        [p1, p2, p3, _p4] = String.split(meu_ip, ".")
+        prefixo_da_rede = "#{p1}.#{p2}.#{p3}"
+        
+        IO.puts("🔎 O seu IP é #{meu_ip}. Varrendo a rede #{prefixo_da_rede}.X...")
+        
+        # Varre TODOS os IPs possíveis de uma rede local (1 até 254)
+        for final <- 1..254 do
+          ip_alvo = "#{prefixo_da_rede}.#{final}"
+          
+          # Se o alvo for a nossa própria máquina, a gente pula
+          if ip_alvo != meu_ip do
+            Task.start(fn ->
+              if Chat.Network.conectar_com(ip_alvo) == true do
+                IO.puts("\n🛰️ Nova conexão automática com: #{ip_alvo}!")
+              end
+            end)
+          end
+        end
+
+      # Se não for vazio nem comando, é uma mensagem normal de chat
       true ->
-        # Se não for vazio nem for comando, espalha a mensagem!
         Chat.Server.enviar(nome, texto)
     end
 
-    # A recursão infinita: chama a si mesma para continuar escutando o teclado
+    # Chama a função de novo para continuar ouvindo o teclado (Loop infinito)
     loop_chat(nome)
   end
 

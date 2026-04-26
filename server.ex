@@ -29,7 +29,8 @@ defmodule Chat.Server do
   @impl true
   def handle_cast({:espalhar_mensagem, nome, texto}, estado) do
     # Passo 1: Imprime a mensagem na NOSSA tela
-    IO.puts("\n[#{nome}]: #{texto}")
+    # Imprime a NOSSA mensagem em Verde
+    IO.puts(IO.ANSI.green() <> "\n[#{nome}]: " <> IO.ANSI.reset() <> texto)
 
     # Passo 2: Pega a lista de IPs das outras máquinas conectadas
     outras_maquinas = Node.list()
@@ -46,7 +47,9 @@ defmodule Chat.Server do
   @impl true
   def handle_cast({:receber_de_fora, nome, texto}, estado) do
     # Quando uma mensagem chega pela rede, a gente apenas imprime
-    IO.puts("\n[#{nome}] (de fora): #{texto}")
+    # Imprime a mensagem DE FORA em Ciano (Azul claro) e pula uma linha antes
+    IO.puts("\n" <> IO.ANSI.cyan() <> "[#{nome}]: " <> IO.ANSI.reset() <> texto)
+
     {:noreply, estado}
   end
 
