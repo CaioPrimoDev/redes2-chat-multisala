@@ -259,8 +259,14 @@ defmodule Chat.Server do
 
         rooms =
           case Map.get(rooms, room) do
-            set when is_struct(set, MapSet) and MapSet.size(set) == 0 -> Map.delete(rooms, room)
-            _ -> rooms
+            %MapSet{} = set ->
+              if MapSet.size(set) == 0 do
+                Map.delete(rooms, room)
+              else
+                rooms
+              end
+            _ ->
+              rooms
           end
 
         %{state | rooms: rooms}
