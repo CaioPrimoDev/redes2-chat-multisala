@@ -1,21 +1,27 @@
-@echo off
-cd /d "%~dp0"
-chcp 65001 >nul
+#!/bin/bash
 
-del *.beam >nul 2>&1
+# Limpa a tela
+clear
 
-echo Compilando o codigo fonte...
-call elixirc server.ex cli.ex
+echo "============================================="
+echo "      INICIALIZADOR CHAT TCP - REDES 2       "
+echo "============================================="
+echo "Escolha o papel desta maquina virtual:"
+echo ""
+echo "[1] Iniciar como SERVIDOR (Central)"
+echo "[2] Iniciar como CLIENTE (Usuario)"
+echo "============================================="
+read -p "Digite 1 ou 2: " OPCAO
 
-if %errorlevel% equ 0 (
-    echo Compilacao concluida!
-    set /p ROLE="Iniciar servidor (S) ou cliente (C)? "
-    if /I "%ROLE%"=="S" (
-        iex -e "Chat.ServerCLI.iniciar()"
-    ) else (
-        iex -e "Chat.CLI.iniciar()"
-    )
-) else (
-    echo Erro na compilacao. Verifique o codigo.
-    pause
-)
+# Compila todos os arquivos .ex da pasta em arquivos executaveis (.beam)
+elixirc *.ex
+
+if [ "$OPCAO" = "1" ]; then
+    echo "Iniciando o Servidor..."
+    elixir -e "Chat.ServerCLI.iniciar()"
+elif [ "$OPCAO" = "2" ]; then
+    echo "Iniciando o Cliente..."
+    elixir -e "Chat.CLI.iniciar()"
+else
+    echo "Opcao invalida. Execute o script novamente."
+fi

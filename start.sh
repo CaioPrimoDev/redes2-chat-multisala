@@ -1,20 +1,27 @@
 #!/bin/bash
 
-# 1. Apaga os .beam antigos por segurança (para garantir uma compilação limpa)
-rm -f *.beam
+# Limpa a tela
+clear
 
-echo "Compilando o codigo fonte..."
-elixirc server.ex cli.ex
+echo "============================================="
+echo "      INICIALIZADOR CHAT TCP - REDES 2       "
+echo "============================================="
+echo "Escolha o papel desta maquina virtual:"
+echo ""
+echo "[1] Iniciar como SERVIDOR (Central)"
+echo "[2] Iniciar como CLIENTE (Usuario)"
+echo "============================================="
+read -p "Digite 1 ou 2: " OPCAO
 
-# Verifica se a compilação deu certo antes de tentar abrir
-if [ $? -eq 0 ]; then
-  echo "Compilacao concluida."
-  read -p "Iniciar servidor (s) ou cliente (c)? " ROLE
-  if [ "$ROLE" = "s" ] || [ "$ROLE" = "S" ]; then
-    iex -e "Chat.ServerCLI.iniciar()"
-  else
-    iex -e "Chat.CLI.iniciar()"
-  fi
+# Compila todos os arquivos .ex da pasta em arquivos executaveis (.beam)
+elixirc *.ex
+
+if [ "$OPCAO" = "1" ]; then
+    echo "Iniciando o Servidor..."
+    elixir -e "Chat.ServerCLI.iniciar()"
+elif [ "$OPCAO" = "2" ]; then
+    echo "Iniciando o Cliente..."
+    elixir -e "Chat.CLI.iniciar()"
 else
-  echo "Erro na compilacao. Verifique seu codigo e tente novamente."
+    echo "Opcao invalida. Execute o script novamente."
 fi
