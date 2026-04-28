@@ -1,7 +1,7 @@
 defmodule Chat.CLI do
   def iniciar() do
     IO.puts("=============================================")
-    IO.puts("              TCP CHAT CLIENT               ")
+    IO.puts("              CLIENTE TCP CHAT              ")
     IO.puts("=============================================")
 
     ip = prompt_ip()
@@ -12,16 +12,16 @@ defmodule Chat.CLI do
         nome = prompt_name()
         :gen_tcp.send(socket, nome <> "\n")
 
-        IO.puts("Connected. Use /join #room, /leave, /exit.")
+        IO.puts("Conectado. Use /join #sala, /leave, /exit.")
         spawn(fn -> receive_loop(socket) end)
         input_loop(socket)
       {:error, reason} ->
-        IO.puts("Failed to connect: #{inspect(reason)}")
+        IO.puts("Falha ao conectar: #{inspect(reason)}")
     end
   end
 
   defp prompt_ip() do
-    input = IO.gets("Server IP (blank for 127.0.0.1): ") |> to_string() |> String.trim()
+    input = IO.gets("IP do servidor (vazio para 127.0.0.1): ") |> to_string() |> String.trim()
 
     case input do
       "" -> {127, 0, 0, 1}
@@ -29,14 +29,14 @@ defmodule Chat.CLI do
         case :inet.parse_address(String.to_charlist(input)) do
           {:ok, ip} -> ip
           {:error, _} ->
-            IO.puts("Invalid IP, try again.")
+            IO.puts("IP invalido, tente novamente.")
             prompt_ip()
         end
     end
   end
 
   defp prompt_port() do
-    input = IO.gets("Server port (blank for 4040): ") |> to_string() |> String.trim()
+    input = IO.gets("Porta do servidor (vazio para 4040): ") |> to_string() |> String.trim()
 
     case input do
       "" -> 4040
@@ -44,17 +44,17 @@ defmodule Chat.CLI do
         case Integer.parse(input) do
           {port, ""} when port > 0 and port < 65536 -> port
           _ ->
-            IO.puts("Invalid port, try again.")
+            IO.puts("Porta invalida, tente novamente.")
             prompt_port()
         end
     end
   end
 
   defp prompt_name() do
-    input = IO.gets("Your name: ") |> to_string() |> String.trim()
+    input = IO.gets("Seu nome: ") |> to_string() |> String.trim()
 
     if input == "" do
-      IO.puts("Name cannot be empty.")
+      IO.puts("Nome nao pode ser vazio.")
       prompt_name()
     else
       input
@@ -89,9 +89,9 @@ defmodule Chat.CLI do
         IO.write(data)
         receive_loop(socket)
       {:error, :closed} ->
-        IO.puts("Disconnected.")
+        IO.puts("Desconectado.")
       {:error, _reason} ->
-        IO.puts("Connection error.")
+        IO.puts("Erro de conexao.")
     end
   end
 end

@@ -1,7 +1,7 @@
 defmodule Chat.ServerCLI do
   def iniciar() do
     IO.puts("=============================================")
-    IO.puts("           TCP CHAT SERVER (CENTRAL)        ")
+    IO.puts("        SERVIDOR TCP CHAT (CENTRAL)         ")
     IO.puts("=============================================")
 
     ip = prompt_ip()
@@ -9,16 +9,16 @@ defmodule Chat.ServerCLI do
 
     case Chat.Server.start(ip, port) do
       {:ok, _pid} ->
-        IO.puts("Server running on #{format_ip(ip)}:#{port}")
-        IO.puts("Press Ctrl+C twice to stop.")
+        IO.puts("Servidor rodando em #{format_ip(ip)}:#{port}")
+        IO.puts("Pressione Ctrl+C duas vezes para parar.")
         Process.sleep(:infinity)
       {:error, reason} ->
-        IO.puts("Failed to start server: #{inspect(reason)}")
+        IO.puts("Falha ao iniciar servidor: #{inspect(reason)}")
     end
   end
 
   defp prompt_ip() do
-    input = IO.gets("Server IP (blank for 0.0.0.0): ") |> to_string() |> String.trim()
+    input = IO.gets("IP do servidor (vazio para 0.0.0.0): ") |> to_string() |> String.trim()
 
     case input do
       "" -> {0, 0, 0, 0}
@@ -26,14 +26,14 @@ defmodule Chat.ServerCLI do
         case :inet.parse_address(String.to_charlist(input)) do
           {:ok, ip} -> ip
           {:error, _} ->
-            IO.puts("Invalid IP, try again.")
+            IO.puts("IP invalido, tente novamente.")
             prompt_ip()
         end
     end
   end
 
   defp prompt_port() do
-    input = IO.gets("Server port (blank for 4040): ") |> to_string() |> String.trim()
+    input = IO.gets("Porta do servidor (vazio para 4040): ") |> to_string() |> String.trim()
 
     case input do
       "" -> 4040
@@ -41,7 +41,7 @@ defmodule Chat.ServerCLI do
         case Integer.parse(input) do
           {port, ""} when port > 0 and port < 65536 -> port
           _ ->
-            IO.puts("Invalid port, try again.")
+            IO.puts("Porta invalida, tente novamente.")
             prompt_port()
         end
     end
@@ -131,12 +131,12 @@ defmodule Chat.Server do
         leave_room(pid, client, state)
 
       trimmed in ["/exit", "/quit"] ->
-        send_to(pid, "Bye!\n", state)
+        send_to(pid, "Tchau!\n", state)
         close_client(pid, state)
         {:noreply, remove_client(pid, state)}
 
       String.starts_with?(trimmed, "/") ->
-        send_to(pid, "Unknown command. Use /join, /leave, /exit.\n", state)
+        send_to(pid, "Comando desconhecido. Use /join, /leave, /exit.\n", state)
         {:noreply, state}
 
       true ->
@@ -149,24 +149,24 @@ defmodule Chat.Server do
 
     cond do
       clean == "" ->
-        send_to(pid, "Name cannot be empty. Try again.\n", state)
+        send_to(pid, "Nome nao pode ser vazio. Tente novamente.\n", state)
         {:noreply, state}
       String.starts_with?(clean, "/") ->
-        send_to(pid, "Invalid name. Try again.\n", state)
+        send_to(pid, "Nome invalido. Tente novamente.\n", state)
         {:noreply, state}
       name_in_use?(clean, state) ->
-        send_to(pid, "Name already in use. Try another.\n", state)
+        send_to(pid, "Nome ja em uso. Tente outro.\n", state)
         {:noreply, state}
       true ->
         updated = %{client | name: clean}
         state = put_in(state, [:clients, pid], updated)
-        send_to(pid, "Welcome #{clean}! Use /join #room to enter a room.\n", state)
+        send_to(pid, "Bem-vindo #{clean}! Use /join #sala para entrar.\n", state)
         {:noreply, state}
     end
   end
 
   defp join_room(pid, _client, nil, state) do
-    send_to(pid, "Invalid room. Use /join #room.\n", state)
+    send_to(pid, "Sala invalida. Use /join #sala.\n", state)
     {:noreply, state}
   end
 
@@ -179,7 +179,7 @@ defmodule Chat.Server do
 
     updated = %{client | room: room}
     state = %{state | rooms: rooms, clients: Map.put(state.clients, pid, updated)}
-    send_to(pid, "Joined #{room}.\n", state)
+    send_to(pid, "Entrou em #{room}.\n", state)
     {:noreply, state}
   end
 
@@ -187,14 +187,14 @@ defmodule Chat.Server do
     state = remove_from_room(pid, state)
     updated = %{client | room: nil}
     state = put_in(state, [:clients, pid], updated)
-    send_to(pid, "Left room.\n", state)
+    send_to(pid, "Saiu da sala.\n", state)
     {:noreply, state}
   end
 
   defp send_message(pid, client, message, state) do
     cond do
       client.room == nil ->
-        send_to(pid, "You are not in a room. Use /join #room.\n", state)
+        send_to(pid, "Voce nao esta em uma sala. Use /join #sala.\n", state)
         {:noreply, state}
       true ->
         room = client.room
@@ -276,7 +276,7 @@ end
 
 defmodule Chat.ClientHandler do
   def run(socket, server_pid) do
-    :gen_tcp.send(socket, "Welcome. Enter your name:\n")
+    :gen_tcp.send(socket, "Bem-vindo. Digite seu nome:\n")
     loop(socket, server_pid)
   end
 
