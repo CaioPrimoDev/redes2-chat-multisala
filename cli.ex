@@ -1,88 +1,97 @@
 defmodule Chat.CLI do
-
   def iniciar() do
-    IO.write("\e[H\e[2J")
     IO.puts("=============================================")
-    IO.puts("        BEM-VINDO AO ELIXIR CHAT P2P         ")
+    IO.puts("              TCP CHAT CLIENT               ")
     IO.puts("=============================================")
 
-    # Iniciamos a rede ANTES para podermos validar o nome com os vizinhos
-    IO.puts("Configurando rede...")
-    Chat.Network.configurar_no()
-    Chat.Server.iniciar()
+    ip = prompt_ip()
+    port = prompt_port()
 
-    nome = escolher_nome()
+    case :gen_tcp.connect(ip, port, [:binary, packet: :line, active: false]) do
+      {:ok, socket} ->
+        nome = prompt_name()
+        :gen_tcp.send(socket, nome <> "\n")
 
-    IO.puts("=============================================")
-    IO.puts("Olá, #{nome}! Digite sua mensagem e aperte Enter.")
-    IO.puts("Comandos: Para conectar manualmente, digite: /conectar IP")
-    IO.puts("          Para buscar colegas na rede, digite: /procurar")
-    IO.puts("=============================================\n")
-
-    loop_chat(nome)
+        IO.puts("Connected. Use /join #room, /leave, /exit.")
+        spawn(fn -> receive_loop(socket) end)
+        input_loop(socket)
+      {:error, reason} ->
+        IO.puts("Failed to connect: #{inspect(reason)}")
+    end
   end
 
-  defp escolher_nome() do
-    nome = IO.gets("Escolha seu nome de usuário: ") |> String.trim()
-    
-    # Validação: Se houver colegas, pergunta se o nome existe
-    if Chat.Server.nome_disponivel?(nome) do
-      nome
+  defp prompt_ip() do
+    input = IO.gets("Server IP (blank for 127.0.0.1): ") |> to_string() |> String.trim()
+
+    case input do
+      "" -> {127, 0, 0, 1}
+      _ ->
+        case :inet.parse_address(String.to_charlist(input)) do
+          {:ok, ip} -> ip
+          {:error, _} ->
+            IO.puts("Invalid IP, try again.")
+            prompt_ip()
+        end
+    end
+  end
+
+  defp prompt_port() do
+    input = IO.gets("Server port (blank for 4040): ") |> to_string() |> String.trim()
+
+    case input do
+      "" -> 4040
+      _ ->
+        case Integer.parse(input) do
+          {port, ""} when port > 0 and port < 65536 -> port
+          _ ->
+            IO.puts("Invalid port, try again.")
+            prompt_port()
+        end
+    end
+  end
+
+  defp prompt_name() do
+    input = IO.gets("Your name: ") |> to_string() |> String.trim()
+
+    if input == "" do
+      IO.puts("Name cannot be empty.")
+      prompt_name()
     else
-      IO.puts(IO.ANSI.yellow() <> "⚠️ Nome '#{nome}' já está em uso! Tente outro." <> IO.ANSI.reset())
-      escolher_nome()
+      input
     end
   end
 
-  defp loop_chat(nome) do
-    texto = IO.gets("") |> String.trim()
+  defp input_loop(socket) do
+    text = IO.gets("")
 
-    cond do
-      # Se o usuário apenas apertar Enter, não faz nada
-      texto == "" ->
-        :ok
+    if text == nil do
+      :gen_tcp.close(socket)
+    else
+      trimmed = String.trim(text)
 
-      # Comando manual de conexão
-      String.starts_with?(texto, "/conectar ") ->
-        ip_destino = String.replace(texto, "/conectar ", "")
-        
-        if Chat.Network.conectar_com(ip_destino) do
-          IO.puts("🤝 Conectado com sucesso a #{ip_destino}!")
-        else
-          IO.puts("⚠️ Não foi possível encontrar a máquina em #{ip_destino}.")
-        end
-
-      # Comando do radar universal
-      texto == "/procurar" ->
-        meu_ip = Chat.Network.buscar_ip_local()
-        
-        # Pega o IP (ex: 192.168.1.10) e divide nos pontos para pegar o prefixo
-        [p1, p2, p3, _p4] = String.split(meu_ip, ".")
-        prefixo_da_rede = "#{p1}.#{p2}.#{p3}"
-        
-        IO.puts("🔎 O seu IP é #{meu_ip}. Varrendo a rede #{prefixo_da_rede}.X...")
-        
-        # Varre TODOS os IPs possíveis de uma rede local (1 até 254)
-        for final <- 1..254 do
-          ip_alvo = "#{prefixo_da_rede}.#{final}"
-          
-          # Se o alvo for a nossa própria máquina, a gente pula
-          if ip_alvo != meu_ip do
-            Task.start(fn ->
-              if Chat.Network.conectar_com(ip_alvo) == true do
-                IO.puts("\n🛰️ Nova conexão automática com: #{ip_alvo}!")
-              end
-            end)
-          end
-        end
-
-      # Se não for vazio nem comando, é uma mensagem normal de chat
-      true ->
-        Chat.Server.enviar(nome, texto)
+      cond do
+        trimmed == "" ->
+          :ok
+        trimmed in ["/exit", "/quit"] ->
+          :gen_tcp.send(socket, trimmed <> "\n")
+          :gen_tcp.close(socket)
+          :ok
+        true ->
+          :gen_tcp.send(socket, trimmed <> "\n")
+          input_loop(socket)
+      end
     end
-
-    # Chama a função de novo para continuar ouvindo o teclado (Loop infinito)
-    loop_chat(nome)
   end
 
+  defp receive_loop(socket) do
+    case :gen_tcp.recv(socket, 0) do
+      {:ok, data} ->
+        IO.write(data)
+        receive_loop(socket)
+      {:error, :closed} ->
+        IO.puts("Disconnected.")
+      {:error, _reason} ->
+        IO.puts("Connection error.")
+    end
+  end
 end
